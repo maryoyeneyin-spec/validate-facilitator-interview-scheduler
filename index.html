@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L2M Validate — Facilitator Interview Scheduler</title>
+<style>
+  :root{
+    --magenta:#c2185b;
+    --magenta-light:#fce4ec;
+    --ink:#1a1a2e;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --bg:#f8f9fb;
+    --green:#16a34a;
+    --green-light:#dcfce7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:20px 24px}
+  header h1{font-size:20px;font-weight:700}
+  header p{color:var(--muted);font-size:14px;margin-top:2px}
+  .tabs{display:flex;gap:4px;background:#fff;padding:0 24px;border-bottom:1px solid var(--line)}
+  .tab{padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+  .tab.active{color:var(--magenta);border-bottom-color:var(--magenta)}
+  .page{display:none;padding:24px;max-width:960px;margin:0 auto}
+  .page.active{display:block}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  input[type=text],input[type=password],input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+
+  .week{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .week-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;cursor:pointer;user-select:none}
+  .week-head:hover{background:var(--bg)}
+  .week-head h3{font-size:15px;font-weight:700}
+  .week-head .meta{display:flex;align-items:center;gap:12px}
+  .week-tag{font-size:12px;color:var(--muted)}
+  .week-tag b{color:var(--magenta)}
+  .chev{transition:transform .2s;color:var(--muted);font-size:13px}
+  .week.open .chev{transform:rotate(90deg)}
+  .week-body{display:none;padding:0 20px 16px}
+  .week.open .week-body{display:block}
+
+  .day{margin-bottom:16px}
+  .day h4{font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:4px}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+  .slot{padding:8px 4px;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:13px;cursor:pointer;background:#fff;user-select:none}
+  .slot.sel{background:var(--magenta);color:#fff;border-color:var(--magenta)}
+
+  .btn{background:var(--magenta);color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost{background:none;color:var(--muted);border:1px solid var(--line);padding:7px 12px;font-size:12px}
+  .counter{position:sticky;bottom:16px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+  .counter span{font-size:14px;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  .heat{display:inline-block;min-width:26px;text-align:center;padding:2px 6px;border-radius:6px;font-weight:600}
+  .muted{color:var(--muted);font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row > div{flex:1;min-width:140px}
+  .confirm{background:var(--green-light);border:1px solid var(--green);color:#14532d;padding:14px;border-radius:10px;margin-top:14px;font-size:14px}
+  .hidden{display:none}
+  .best{background:var(--magenta-light);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:14px;display:flex;justify-content:space-between}
+  .best b{color:var(--magenta)}
+  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>L2M Validate — Facilitator Interview Scheduler</h1>
+  <p>Select all the times you're available. We'll find a slot that works.</p>
+</header>
+<div class="tabs">
+  <button class="tab active" onclick="showPage('candidate',this)">Availability</button>
+  <button class="tab" onclick="showPage('organizer',this)">Organizer</button>
+</div>
+
+<div id="candidate" class="page active">
+  <div class="card">
+    <label>Your name</label>
+    <input type="text" id="candName" placeholder="First and last name">
+  </div>
+  <div class="toolbar">
+    <button class="btn ghost" onclick="toggleAll(true)">Expand all weeks</button>
+    <button class="btn ghost" onclick="toggleAll(false)">Collapse all weeks</button>
+  </div>
+  <div id="grids"></div>
+  <div class="counter">
+    <span id="count">0 slots selected</span>
+    <button class="btn" onclick="submitAvail()">Submit availability</button>
+  </div>
+  <div id="confirmBox"></div>
+</div>
+
+<div id="organizer" class="page">
+  <div id="orgLock" class="card">
+    <label>Organizer password</label>
+    <div class="row">
+      <div><input type="password" id="orgPass" placeholder="Enter password"></div>
+      <button class="btn" onclick="unlock()">Unlock</button>
+    </div>
+  </div>
+  <div id="orgContent" class="hidden"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tiuxwzgprjjrbubinuyx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdXh3emdwcmpqcmJ1YmludXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4Mzg2NzQsImV4cCI6MjA5ODQxNDY3NH0.2UaesaJLHG3ohbl06nLkgfXHt9kG_gKo0tLbvKC6plA";
+const TABLE = "interview_responses";
+const ORG_PASSWORD = "L2M2026";
+
+let CONFIG = {
+  startHour: 9,
+  endHour: 17,
+  slotMins: 60,
+  rangeStart: "2026-07-06",
+  rangeEnd:   "2026-09-06",
+  weekdaysOnly: true
+};
+
+function buildDates(){
+  const out=[];
+  let d=new Date(CONFIG.rangeStart+"T12:00:00");
+  const end=new Date(CONFIG.rangeEnd+"T12:00:00");
+  while(d<=end){
+    const dow=d.getDay();
+    if(!CONFIG.weekdaysOnly || (dow>=1&&dow<=5)){out.push(d.toISOString().slice(0,10));}
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+function groupByWeek(dates){
+  const weeks={};
+  dates.forEach(iso=>{
+    const d=new Date(iso+"T12:00:00");
+    const monday=new Date(d);
+    const diff=(d.getDay()===0?-6:1-d.getDay());
+    monday.setDate(d.getDate()+diff);
+    const key=monday.toISOString().slice(0,10);
+    (weeks[key]=weeks[key]||[]).push(iso);
+  });
+  return weeks;
+}
+function fmtDate(iso){const d=new Date(iso+"T12:00:00");return d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});}
+function fmtShort(iso){const d=new Date(iso+"T12:00:00");return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
+function weekLabel(mon,days){
+  const a=new Date(days[0]+"T12:00:00");
+  const b=new Date(days[days.length-1]+"T12:00:00");
+  const o={month:'short',day:'numeric'};
+  return a.toLocaleDateString('en-US',o)+" – "+b.toLocaleDateString('en-US',o);
+}
+function timeSlots(){
+  const out=[];
+  for(let h=CONFIG.startHour; h<CONFIG.endHour; h+= CONFIG.slotMins/60){
+    const hr=Math.floor(h), min=Math.round((h-hr)*60);
+    const ampm=hr>=12?'pm':'am';
+    const dispH=hr>12?hr-12:(hr===0?12:hr);
+    out.push(`${dispH}:${String(min).padStart(2,'0')}${ampm}`);
+  }
+  return out;
+}
+function slotId(date,time){return date+"|"+time;}
+
+let selected=new Set();
+
+function buildGrids(){
+  const wrap=document.getElementById('grids');
+  wrap.innerHTML='';
+  const times=timeSlots();
+  const weeks=groupByWeek(buildDates());
+  const weekKeys=Object.keys(weeks).sort();
+  weekKeys.forEach((mon,idx)=>{
+    const days=weeks[mon];
+    const wk=document.createElement('div');
+    wk.className='week'+(idx===0?' open':'');
+    wk.innerHTML=`
+      <div class="week-head" onclick="this.parentElement.classList.toggle('open')">
+        <h3>Week ${idx+1} <span class="muted" style="font-weight:500">· ${weekLabel(mon,days)}</span></h3>
+        <div class="meta">
+          <span class="week-tag" data-week="${mon}"></span>
+          <span class="chev">▶</span>
+        </div>
+      </div>
+      <div class="week-body"></div>`;
+    const body=wk.querySelector('.week-body');
+    days.forEach(date=>{
+      const day=document.createElement('div');
+      day.className='day';
+      day.innerHTML=`<h4>${fmtDate(date)}</h4>`;
+      const grid=document.createElement('div');
+      grid.className='slots';
+      times.forEach(t=>{
+        const id=slotId(date,t);
+        const el=document.createElement('div');
+        el.className='slot'+(selected.has(id)?' sel':'');
+        el.textContent=t;
+        el.onclick=()=>{
+          if(selected.has(id)){selected.delete(id);el.classList.remove('sel');}
+          else{selected.add(id);el.classList.add('sel');}
+          updateCount();updateWeekTags();
+        };
+        grid.appendChild(el);
+      });
+      day.appendChild(grid);
+      body.appendChild(day);
+    });
+    wrap.appendChild(wk);
+  });
+  updateCount();updateWeekTags();
+}
+function updateWeekTags(){
+  const times=timeSlots();
+  const weeks=groupByWeek(buildDates());
+  document.querySelectorAll('.week-tag').forEach(tag=>{
+    const mon=tag.dataset.week;
+    const days=weeks[mon]||[];
+    const n=days.reduce((acc,d)=>acc+times.filter(t=>selected.has(slotId(d,t))).length,0);
+    tag.innerHTML=n>0?`<b>${n} selected</b>`:'';
+  });
+}
+function updateCount(){document.getElementById('count').textContent=selected.size+" slot"+(selected.size===1?'':'s')+" selected";}
+function toggleAll(open){document.querySelectorAll('.week').forEach(w=>w.classList.toggle('open',open));}
+
+async function submitAvail(){
+  const name=document.getElementById('candName').value.trim();
+  if(!name){alert('Please enter your name first.');return;}
+  if(selected.size===0){alert('Please select at least one time slot.');return;}
+  const slotsStr=[...selected].join(',');
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?candidate_name=eq.${encodeURIComponent(name)}`,{
+      method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`,{
+      method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return-minimal'},
+      body:JSON.stringify({candidate_name:name,slots:slotsStr})});
+    document.getElementById('confirmBox').innerHTML=
+      `<div class="confirm"><b>Thanks, ${name}!</b> Your ${selected.size} available slot${selected.size===1?'':'s'} ${selected.size===1?'has':'have'} been recorded. You can resubmit anytime to update your availability.</div>`;
+  }catch(e){alert('Could not save. Please check your connection and try again.');}
+}
+
+document.getElementById('candName').addEventListener('blur',async function(){
+  const name=this.value.trim();
+  if(!name)return;
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?candidate_name=eq.${encodeURIComponent(name)}&select=slots`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    const data=await r.json();
+    if(data&&data[0]&&data[0].slots){selected=new Set(data[0].slots.split(','));buildGrids();}
+  }catch(e){}
+});
+
+function unlock(){
+  if(document.getElementById('orgPass').value===ORG_PASSWORD){
+    document.getElementById('orgLock').classList.add('hidden');
+    document.getElementById('orgContent').classList.remove('hidden');
+    buildOrgView();
+  }else{alert('Incorrect password.');}
+}
+function heatColor(n,max){
+  if(n===0)return '#f3f4f6';
+  const pct=n/max;
+  if(pct>=.75)return '#16a34a';
+  if(pct>=.5)return '#65a30d';
+  if(pct>=.25)return '#eab308';
+  return '#f59e0b';
+}
+
+async function buildOrgView(){
+  const c=document.getElementById('orgContent');
+  c.innerHTML='<div class="card">Loading responses…</div>';
+  let rows=[];
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*`,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    rows=await r.json();
+  }catch(e){c.innerHTML='<div class="card">Could not load responses.</div>';return;}
+
+  const tally={};
+  rows.forEach(row=>{(row.slots||'').split(',').forEach(s=>{if(s)tally[s]=(tally[s]||0)+1;});});
+  const max=Math.max(1,...Object.values(tally));
+  const ranked=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+
+  let html='';
+  html+='<div class="card"><h3 style="margin-bottom:10px">Best slots</h3>';
+  if(ranked.length===0){html+='<p class="muted">No responses yet.</p>';}
+  else{ranked.slice(0,10).forEach(([id,n])=>{const [date,time]=id.split('|');html+=`<div class="best"><span>${fmtShort(date)} · ${time}</span><b>${n} available</b></div>`;});}
+  html+='</div>';
+
+  html+=`<div class="card"><h3 style="margin-bottom:10px">Responses (${rows.length})</h3><table><tr><th>Candidate</th><th># slots</th><th>Export</th></tr>`;
+  rows.forEach(row=>{
+    const cnt=(row.slots||'').split(',').filter(Boolean).length;
+    html+=`<tr><td>${row.candidate_name}</td><td>${cnt}</td><td><button class="btn ghost" onclick='exportIcs(${JSON.stringify(row.candidate_name)},${JSON.stringify(row.slots)})'>.ics</button></td></tr>`;
+  });
+  html+='</table></div>';
+
+  const weeks=groupByWeek(buildDates());
+  const weekKeys=Object.keys(weeks).sort();
+  html+='<div class="card"><h3 style="margin-bottom:10px">Availability heatmap</h3>';
+  weekKeys.forEach((mon,idx)=>{
+    const days=weeks[mon];
+    html+=`<h4 style="margin:14px 0 6px;font-size:13px">Week ${idx+1} · ${weekLabel(mon,days)}</h4><div style="overflow-x:auto"><table><tr><th>Time</th>`;
+    days.forEach(d=>html+=`<th>${fmtShort(d)}</th>`);
+    html+='</tr>';
+    timeSlots().forEach(t=>{
+      html+=`<tr><td>${t}</td>`;
+      days.forEach(d=>{const n=tally[slotId(d,t)]||0;html+=`<td><span class="heat" style="background:${heatColor(n,max)};color:${n===0?'#9ca3af':'#fff'}">${n}</span></td>`;});
+      html+='</tr>';
+    });
+    html+='</table></div>';
+  });
+  html+='</div>';
+
+  html+=`<div class="card"><h3 style="margin-bottom:10px">Cohort settings</h3>
+    <div class="row" style="margin-bottom:12px">
+      <div><label>Start date</label><input type="text" id="cfgRangeStart" value="${CONFIG.rangeStart}"></div>
+      <div><label>End date</label><input type="text" id="cfgRangeEnd" value="${CONFIG.rangeEnd}"></div>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <div><label>Start hour (24h)</label><input type="number" id="cfgStart" value="${CONFIG.startHour}"></div>
+      <div><label>End hour (24h)</label><input type="number" id="cfgEnd" value="${CONFIG.endHour}"></div>
+      <div><label>Slot length (mins)</label><input type="number" id="cfgMins" value="${CONFIG.slotMins}"></div>
+    </div>
+    <div style="margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="applyConfig()">Apply settings</button>
+      <button class="btn secondary" onclick="buildOrgView()">Refresh</button>
+      <button class="btn ghost" onclick="resetResponses()" style="margin-left:auto;color:#b91c1c">Clear all responses</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Weekends are skipped automatically. Changes apply for this browser session; update the CONFIG block in index.html to make them permanent.</p>
+  </div>`;
+  c.innerHTML=html;
+}
+
+function applyConfig(){
+  CONFIG.rangeStart=document.getElementById('cfgRangeStart').value.trim()||CONFIG.rangeStart;
+  CONFIG.rangeEnd=document.getElementById('cfgRangeEnd').value.trim()||CONFIG.rangeEnd;
+  CONFIG.startHour=parseInt(document.getElementById('cfgStart').value)||9;
+  CONFIG.endHour=parseInt(document.getElementById('cfgEnd').value)||17;
+  CONFIG.slotMins=parseInt(document.getElementById('cfgMins').value)||60;
+  selected=new Set();buildGrids();buildOrgView();
+  alert('Settings applied. The availability form has been rebuilt.');
+}
+
+async function resetResponses(){
+  if(!confirm('This will delete ALL candidate responses. Are you sure?'))return;
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=gt.0`,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    buildOrgView();
+  }catch(e){alert('Could not clear responses.');}
+}
+
+function exportIcs(name,slots){
+  const list=(slots||'').split(',').filter(Boolean);
+  if(list.length===0){alert('No slots for this candidate.');return;}
+  let ics='BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//L2M Validate//Interview Scheduler//EN\n';
+  list.forEach((s,i)=>{
+    const [date,time]=s.split('|');
+    const m=time.match(/(\d+):(\d+)(am|pm)/);
+    let hr=parseInt(m[1]); const min=parseInt(m[2]);
+    if(m[3]==='pm'&&hr!==12)hr+=12;
+    if(m[3]==='am'&&hr===12)hr=0;
+    const dt=date.replace(/-/g,'');
+    const start=`${dt}T${String(hr).padStart(2,'0')}${String(min).padStart(2,'0')}00`;
+    let endH=hr, endM=min+CONFIG.slotMins;
+    while(endM>=60){endM-=60;endH++;}
+    const end=`${dt}T${String(endH).padStart(2,'0')}${String(endM).padStart(2,'0')}00`;
+    ics+=`BEGIN:VEVENT\nUID:${Date.now()}-${i}@l2mvalidate\nDTSTART;TZID=America/Vancouver:${start}\nDTEND;TZID=America/Vancouver:${end}\nSUMMARY:Validate Facilitator Interview — ${name}\nEND:VEVENT\n`;
+  });
+  ics+='END:VCALENDAR';
+  const blob=new Blob([ics],{type:'text/calendar'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`interview-${name.replace(/\s+/g,'-')}.ics`;
+  a.click();
+}
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='organizer'&&!document.getElementById('orgContent').classList.contains('hidden'))buildOrgView();
+}
+
+buildGrids();
+</script>
+</body>
+</html>
