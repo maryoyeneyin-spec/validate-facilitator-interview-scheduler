@@ -64,6 +64,14 @@
   .best{background:var(--magenta-light);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:14px;display:flex;justify-content:space-between}
   .best b{color:var(--magenta)}
   .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .cand-row{cursor:pointer}
+  .cand-row:hover{background:var(--bg)}
+  .cand-row .chev{display:inline-block;transition:transform .2s}
+  .cand-detail td{background:var(--bg);padding-top:4px;padding-bottom:10px}
+  .cand-slots{display:flex;flex-direction:column;gap:6px}
+  .cand-day{font-size:13px}
+  .cand-date{display:inline-block;font-weight:700;min-width:120px;color:var(--ink)}
+  .slot-chip{display:inline-block;background:var(--magenta-light);color:var(--magenta);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;margin:2px}
 </style>
 </head>
 <body>
@@ -105,8 +113,8 @@
 </div>
 
 <script>
-const SUPABASE_URL = "https://tiuxwzgprjjrbubinuyx.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdXh3emdwcmpqcmJ1YmludXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4Mzg2NzQsImV4cCI6MjA5ODQxNDY3NH0.2UaesaJLHG3ohbl06nLkgfXHt9kG_gKo0tLbvKC6plA";
+const SUPABASE_URL = "https://REPLACE_PROJECT.supabase.co";
+const SUPABASE_KEY = "REPLACE_ANON_KEY";
 const TABLE = "interview_responses";
 const ORG_PASSWORD = "L2M2026";
 
@@ -265,6 +273,33 @@ function heatColor(n,max){
   return '#f59e0b';
 }
 
+function renderCandSlots(slots){
+  const list=(slots||'').split(',').filter(Boolean);
+  if(list.length===0)return '<span class="muted">No slots selected.</span>';
+  // group by date
+  const byDate={};
+  list.forEach(s=>{const [d,t]=s.split('|');(byDate[d]=byDate[d]||[]).push(t);});
+  // order times within each day by their position in the slot list
+  const order=timeSlots();
+  const dates=Object.keys(byDate).sort();
+  let out='<div class="cand-slots">';
+  dates.forEach(d=>{
+    const times=byDate[d].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+    out+=`<div class="cand-day"><span class="cand-date">${fmtShort(d)}</span> `;
+    out+=times.map(t=>`<span class="slot-chip">${t}</span>`).join(' ');
+    out+='</div>';
+  });
+  out+='</div>';
+  return out;
+}
+function toggleCand(i){
+  const row=document.getElementById('cdet-'+i);
+  const chev=document.getElementById('cchev-'+i);
+  if(!row)return;
+  const open=row.classList.toggle('hidden')===false;
+  if(chev)chev.style.transform=open?'rotate(90deg)':'rotate(0deg)';
+}
+
 async function buildOrgView(){
   const c=document.getElementById('orgContent');
   c.innerHTML='<div class="card">Loading responses…</div>';
@@ -285,10 +320,11 @@ async function buildOrgView(){
   else{ranked.slice(0,10).forEach(([id,n])=>{const [date,time]=id.split('|');html+=`<div class="best"><span>${fmtShort(date)} · ${time}</span><b>${n} available</b></div>`;});}
   html+='</div>';
 
-  html+=`<div class="card"><h3 style="margin-bottom:10px">Responses (${rows.length})</h3><table><tr><th>Candidate</th><th># slots</th><th>Export</th></tr>`;
-  rows.forEach(row=>{
+  html+=`<div class="card"><h3 style="margin-bottom:6px">Responses (${rows.length})</h3><p class="muted" style="margin-bottom:10px">Click a candidate to see the exact slots they selected.</p><table><tr><th></th><th>Candidate</th><th># slots</th><th>Export</th></tr>`;
+  rows.forEach((row,ri)=>{
     const cnt=(row.slots||'').split(',').filter(Boolean).length;
-    html+=`<tr><td>${row.candidate_name}</td><td>${cnt}</td><td><button class="btn ghost" onclick='exportIcs(${JSON.stringify(row.candidate_name)},${JSON.stringify(row.slots)})'>.ics</button></td></tr>`;
+    html+=`<tr class="cand-row" onclick="toggleCand(${ri})"><td style="width:24px"><span class="chev" id="cchev-${ri}">▶</span></td><td>${row.candidate_name}</td><td>${cnt}</td><td><button class="btn ghost" onclick='event.stopPropagation();exportIcs(${JSON.stringify(row.candidate_name)},${JSON.stringify(row.slots)})'>.ics</button></td></tr>`;
+    html+=`<tr class="cand-detail hidden" id="cdet-${ri}"><td></td><td colspan="3">${renderCandSlots(row.slots)}</td></tr>`;
   });
   html+='</table></div>';
 
